@@ -1,0 +1,39 @@
+[
+  {
+    "reference": "hpn_dream",
+    "total_edges_raw": 144,
+    "total_edges_normalized": 232,
+    "unique_sources_normalized": 50,
+    "unique_targets_normalized": 51,
+    "missing_sources": 0,
+    "missing_targets": 0,
+    "missing_unique": 0,
+    "missing_total": 0,
+    "missing_top": []
+  },
+  {
+    "reference": "beeline_gsd",
+    "total_edges_raw": 86,
+    "total_edges_normalized": 76,
+    "unique_sources_normalized": 17,
+    "unique_targets_normalized": 18,
+    "missing_sources": 15,
+    "missing_targets": 15,
+    "missing_unique": 3,
+    "missing_total": 30,
+    "missing_top": [
+      {
+        "id": "SRY",
+        "count": 13
+      },
+      {
+        "id": "NR0B1",
+        "count": 9
+      },
+      {
+        "id": "UGR",
+        "count": 8
+      }
+    ]
+  }
+]

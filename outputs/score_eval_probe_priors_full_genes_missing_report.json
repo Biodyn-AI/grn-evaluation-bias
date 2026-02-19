@@ -1,0 +1,14 @@
+[
+  {
+    "reference": "hpn_dream",
+    "total_edges_raw": 144,
+    "total_edges_normalized": 232,
+    "unique_sources_normalized": 50,
+    "unique_targets_normalized": 51,
+    "missing_sources": 0,
+    "missing_targets": 0,
+    "missing_unique": 0,
+    "missing_total": 0,
+    "missing_top": []
+  }
+]

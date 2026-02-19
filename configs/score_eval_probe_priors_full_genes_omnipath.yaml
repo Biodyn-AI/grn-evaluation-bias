@@ -1,0 +1,97 @@
+project:
+  name: network-inference-score-eval-probe-priors-full-genes-omnipath
+  seed: 42
+
+paths:
+  processed_h5ad: ../../single_cell_mechinterp/outputs/tabula_sapiens_immune_processed.h5ad
+  hgnc_alias_tsv: ../../single_cell_mechinterp/external/hgnc_complete_set.txt
+
+score_eval:
+  remove_self: true
+  max_genes_for_matrix: 15000
+  output_path: ../outputs/score_eval_probe_priors_full_genes_omnipath.json
+  overlap_gate:
+    enabled: true
+    min_ref_node_overlap_pct: 1.0
+    min_gene_universe_overlap_pct: 0.1
+  diagnostics:
+    output_path: ../outputs/score_eval_probe_priors_full_genes_omnipath_missing_report.json
+    tsv_path: ../outputs/score_eval_probe_priors_full_genes_omnipath_missing_ids.tsv
+    top_n: 200
+    references:
+      - hpn_dream
+      - omnipath_interactions
+  mapping:
+    adata_alias_cols:
+      - ensembl_id
+      - feature_id
+      - feature_name
+      - gene_id
+    id_mapping:
+      cache_path: ../data/mygene_id_map_cache.json
+      scopes:
+        - ensembl.gene
+        - entrezgene
+        - uniprot.Swiss-Prot
+        - uniprot.TrEMBL
+      species: human
+  references:
+    - name: hpn_dream
+      edges_tsv: ../data/hpn_dream_goldstandard.tsv
+      source_col: source
+      target_col: target
+      mapping:
+        strip_phospho_suffix: true
+        symbol_map_tsv: ../data/hpn_dream_symbol_map.tsv
+        hgnc_extra_alias_cols:
+          - entrez_id
+          - ensembl_id
+          - uniprot_ids
+        drop_unmapped: true
+    - name: dorothea_human
+      edges_tsv: ../../single_cell_mechinterp/external/networks/dorothea_human.tsv
+      source_col: source
+      target_col: target
+    - name: trrust_human
+      edges_tsv: ../../single_cell_mechinterp/external/networks/trrust_human.tsv
+      source_col: 0
+      target_col: 1
+    - name: dorothea_trrust_union_immune
+      edges_tsv: ../data/dorothea_trrust_union_immune.tsv
+      source_col: source
+      target_col: target
+    - name: omnipath_interactions
+      edges_tsv: ../data/omnipath_interactions_no_underscore.tsv
+      source_col: source_genesymbol
+      target_col: target_genesymbol
+  methods:
+    - name: attention_inferred
+      edges_tsv: ../outputs/inferred_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: probe_attention
+      edges_tsv: ../../single_cell_mechinterp/outputs/probe_benchmark/edges/attention.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: probe_grad_input
+      edges_tsv: ../../single_cell_mechinterp/outputs/probe_benchmark/edges/grad_input.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: probe_integrated_gradients
+      edges_tsv: ../../single_cell_mechinterp/outputs/probe_benchmark/edges/integrated_gradients.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: probe_perturbation
+      edges_tsv: ../../single_cell_mechinterp/outputs/probe_benchmark/edges/perturbation.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: probe_consensus
+      edges_tsv: ../../single_cell_mechinterp/outputs/probe_benchmark/edges/consensus.tsv
+      source_col: source
+      target_col: target
+      score_col: score

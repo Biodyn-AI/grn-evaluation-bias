@@ -1,0 +1,35 @@
+project:
+  name: network-inference-regulatory
+  seed: 42
+
+paths:
+  processed_h5ad: ../../single_cell_mechinterp/outputs/tabula_sapiens_processed.h5ad
+  attention_scores: ../../single_cell_mechinterp/outputs/attention_scores.npy
+  attention_counts: ../../single_cell_mechinterp/outputs/attention_counts.npy
+  dorothea_tsv: ../../single_cell_mechinterp/external/networks/trrust_human.tsv
+  hgnc_alias_tsv: ../../single_cell_mechinterp/external/hgnc_complete_set.txt
+  network_edges: ../outputs/inferred_edges_regulatory.tsv
+  network_graphml: ../outputs/inferred_edges_regulatory.graphml
+  run_manifest: ../outputs/run_manifest_regulatory.json
+
+network:
+  threshold_percentile: 90
+  top_k: 100
+  remove_self: true
+  candidate_sources_from_dorothea: true
+  candidate_targets_from_dorothea: true
+  candidate_mask_mode: union
+
+evaluation:
+  dorothea_confidence:
+    - A
+    - B
+    - C
+    - D
+
+sweep:
+  percentiles: [80, 85, 90, 92, 94, 95]
+  top_k_values: [25, 50, 100, 150]
+  candidate_sources_from_dorothea: true
+  candidate_targets_from_dorothea: true
+  output_path: ../outputs/sweep_results_regulatory.json

@@ -1,0 +1,89 @@
+project:
+  name: network-inference-score-eval-grn-baselines-immune
+  seed: 42
+
+paths:
+  processed_h5ad: ../../single_cell_mechinterp/outputs/tabula_sapiens_immune_subset_hpn_processed.h5ad
+  hgnc_alias_tsv: ../../single_cell_mechinterp/external/hgnc_complete_set.txt
+
+score_eval:
+  remove_self: true
+  output_path: ../outputs/score_eval_grn_baselines_immune.json
+  overlap_gate:
+    enabled: true
+    min_ref_node_overlap_pct: 1.0
+    min_gene_universe_overlap_pct: 0.1
+  references:
+    - name: hpn_dream
+      edges_tsv: ../data/hpn_dream_goldstandard.tsv
+      source_col: source
+      target_col: target
+      mapping:
+        strip_phospho_suffix: true
+        symbol_map_tsv: ../data/hpn_dream_symbol_map.tsv
+        hgnc_extra_alias_cols:
+          - entrez_id
+          - ensembl_id
+          - uniprot_ids
+        drop_unmapped: true
+    - name: beeline_gsd
+      edges_tsv: ../data/beeline_gsd_refnetwork.tsv
+      source_col: source
+      target_col: target
+      mapping:
+        symbol_map_tsv: ../data/beeline_gsd_symbol_map.tsv
+        hgnc_extra_alias_cols:
+          - entrez_id
+          - ensembl_id
+          - uniprot_ids
+        drop_unmapped: true
+    - name: dorothea_trrust_union_immune
+      edges_tsv: ../data/dorothea_trrust_union_immune.tsv
+      source_col: source
+      target_col: target
+  methods:
+    - name: genie3
+      edges_tsv: ../../single_cell_mechinterp/outputs/eval_bias/baselines_immune_subset/immune_subset_hpn/genie3_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: grnboost2
+      edges_tsv: ../../single_cell_mechinterp/outputs/eval_bias/baselines_immune_subset/immune_subset_hpn/grnboost2_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: scenic_grnboost2
+      edges_tsv: ../../single_cell_mechinterp/outputs/eval_bias/baselines_immune_subset/immune_subset_hpn/scenic_grnboost2_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: scenic_pruned
+      edges_tsv: ../../single_cell_mechinterp/outputs/eval_bias/baselines_immune_subset/immune_subset_hpn/scenic_pruned_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: pidc_proxy
+      edges_tsv: ../../single_cell_mechinterp/outputs/eval_bias/baselines_immune_subset/immune_subset_hpn/pidc_proxy_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: pidc_full
+      edges_tsv: ../../single_cell_mechinterp/outputs/eval_bias/baselines_immune_subset/immune_subset_hpn/pidc_full_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: pearson
+      edges_tsv: ../../single_cell_mechinterp/outputs/eval_bias/baselines_immune_subset/immune_subset_hpn/pearson_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: spearman
+      edges_tsv: ../../single_cell_mechinterp/outputs/eval_bias/baselines_immune_subset/immune_subset_hpn/spearman_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score
+    - name: random
+      edges_tsv: ../../single_cell_mechinterp/outputs/eval_bias/baselines_immune_subset/immune_subset_hpn/random_edges.tsv
+      source_col: source
+      target_col: target
+      score_col: score

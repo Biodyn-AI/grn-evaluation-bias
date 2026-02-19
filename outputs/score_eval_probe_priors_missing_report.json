@@ -1,0 +1,284 @@
+[
+  {
+    "reference": "hpn_dream",
+    "total_edges_raw": 144,
+    "total_edges_normalized": 232,
+    "unique_sources_normalized": 50,
+    "unique_targets_normalized": 51,
+    "missing_sources": 221,
+    "missing_targets": 220,
+    "missing_unique": 48,
+    "missing_total": 441,
+    "missing_top": [
+      {
+        "id": "EGFR",
+        "count": 25
+      },
+      {
+        "id": "RPS6",
+        "count": 21
+      },
+      {
+        "id": "CDKN1B",
+        "count": 19
+      },
+      {
+        "id": "RB1",
+        "count": 16
+      },
+      {
+        "id": "EIF4EBP1",
+        "count": 16
+      },
+      {
+        "id": "SRC",
+        "count": 13
+      },
+      {
+        "id": "RAF1",
+        "count": 12
+      },
+      {
+        "id": "MAP2K1",
+        "count": 11
+      },
+      {
+        "id": "GSK3A",
+        "count": 11
+      },
+      {
+        "id": "GSK3B",
+        "count": 11
+      },
+      {
+        "id": "STAT3",
+        "count": 10
+      },
+      {
+        "id": "ESR1",
+        "count": 10
+      },
+      {
+        "id": "AKT2",
+        "count": 10
+      },
+      {
+        "id": "AKT1",
+        "count": 10
+      },
+      {
+        "id": "ACACB",
+        "count": 10
+      },
+      {
+        "id": "ACACA",
+        "count": 10
+      },
+      {
+        "id": "RPS6KA1",
+        "count": 9
+      },
+      {
+        "id": "PRKAA1",
+        "count": 9
+      },
+      {
+        "id": "MAPK10",
+        "count": 9
+      },
+      {
+        "id": "CHEK2",
+        "count": 9
+      },
+      {
+        "id": "AKT1S1",
+        "count": 9
+      },
+      {
+        "id": "MAPK9",
+        "count": 9
+      },
+      {
+        "id": "MAPK8",
+        "count": 9
+      },
+      {
+        "id": "PRKAA2",
+        "count": 9
+      },
+      {
+        "id": "FOXO3",
+        "count": 9
+      },
+      {
+        "id": "RPS6KA4",
+        "count": 9
+      },
+      {
+        "id": "MET",
+        "count": 9
+      },
+      {
+        "id": "RPS6KA3",
+        "count": 9
+      },
+      {
+        "id": "YBX1",
+        "count": 9
+      },
+      {
+        "id": "RPS6KA2",
+        "count": 9
+      },
+      {
+        "id": "ERBB2",
+        "count": 8
+      },
+      {
+        "id": "PRKCD",
+        "count": 8
+      },
+      {
+        "id": "RELA",
+        "count": 7
+      },
+      {
+        "id": "NDRG1",
+        "count": 7
+      },
+      {
+        "id": "WWTR1",
+        "count": 6
+      },
+      {
+        "id": "MAPK1",
+        "count": 6
+      },
+      {
+        "id": "RICTOR",
+        "count": 6
+      },
+      {
+        "id": "MAPK3",
+        "count": 6
+      },
+      {
+        "id": "ERBB3",
+        "count": 6
+      },
+      {
+        "id": "MTOR",
+        "count": 5
+      },
+      {
+        "id": "RPS6KB1",
+        "count": 5
+      },
+      {
+        "id": "PEA15",
+        "count": 5
+      },
+      {
+        "id": "MAPK14",
+        "count": 5
+      },
+      {
+        "id": "CHEK1",
+        "count": 4
+      },
+      {
+        "id": "YAP1",
+        "count": 4
+      },
+      {
+        "id": "PDPK1",
+        "count": 4
+      },
+      {
+        "id": "BAD",
+        "count": 4
+      },
+      {
+        "id": "PRKCA",
+        "count": 4
+      }
+    ]
+  },
+  {
+    "reference": "beeline_gsd",
+    "total_edges_raw": 86,
+    "total_edges_normalized": 76,
+    "unique_sources_normalized": 17,
+    "unique_targets_normalized": 18,
+    "missing_sources": 74,
+    "missing_targets": 69,
+    "missing_unique": 16,
+    "missing_total": 143,
+    "missing_top": [
+      {
+        "id": "SOX9",
+        "count": 21
+      },
+      {
+        "id": "WNT4",
+        "count": 17
+      },
+      {
+        "id": "CTNNB1",
+        "count": 14
+      },
+      {
+        "id": "SRY",
+        "count": 13
+      },
+      {
+        "id": "NR5A1",
+        "count": 12
+      },
+      {
+        "id": "GATA4",
+        "count": 10
+      },
+      {
+        "id": "NR0B1",
+        "count": 9
+      },
+      {
+        "id": "WT1",
+        "count": 8
+      },
+      {
+        "id": "UGR",
+        "count": 8
+      },
+      {
+        "id": "CBX2",
+        "count": 7
+      },
+      {
+        "id": "FOXL2",
+        "count": 6
+      },
+      {
+        "id": "RSPO1",
+        "count": 5
+      },
+      {
+        "id": "DKK1",
+        "count": 4
+      },
+      {
+        "id": "DMRT1",
+        "count": 4
+      },
+      {
+        "id": "FGF9",
+        "count": 4
+      },
+      {
+        "id": "DHH",
+        "count": 1
+      }
+    ]
+  }
+]
