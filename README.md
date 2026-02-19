@@ -4,7 +4,7 @@ A standardized evaluation framework for benchmarking gene regulatory network (GR
 
 ## Motivation
 
-GRN inference benchmarks are sensitive to methodological choices that are often left implicit: how gene identifiers are mapped across databases, which candidate edges are considered, and whether reference networks overlap with the gene universe under study. This repository provides configurations, reference data, and evaluation outputs that make these choices explicit and reproducible.
+GRN inference benchmarks are sensitive to methodological choices that are often left implicit: how gene identifiers are mapped across databases, which candidate edges are considered, and whether reference networks overlap with the gene universe under study. This repository provides source code, configurations, reference data, and evaluation outputs that make these choices explicit and reproducible.
 
 ## Key findings
 
@@ -16,11 +16,60 @@ GRN inference benchmarks are sensitive to methodological choices that are often 
 ## Repository structure
 
 ```
-configs/     YAML configuration files for evaluation runs
-data/        Symbol mapping TSVs and reference network subsets
-outputs/     Evaluation results (JSON metrics, CSV score tables, missing-ID reports)
-REPORT.md    Detailed technical report with methods, tables, and figures
+network_inference/           Network inference and evaluation library
+  src/                       Python package (CLI, evaluation, inference, calibration, priors)
+  scripts/                   Helper scripts (summary generation, report validation)
+single_cell_mechinterp/      scGPT attention extraction and mechanistic interpretability
+  src/                       Python package (data, eval, interpret, model, network, utils)
+  scripts/                   Analysis scripts (eval bias, probes, causal interventions)
+  deps/                      Conda environment and pip requirements
+configs/                     YAML configuration files for evaluation runs
+data/                        Symbol mapping TSVs and reference network subsets
+outputs/                     Evaluation results (JSON metrics, CSV score tables, diagnostics)
+REPORT.md                    Detailed technical report with methods, tables, and figures
 ```
+
+### network_inference/
+
+The `network_inference` package provides a config-driven CLI for network inference and evaluation:
+
+```bash
+# Infer a network from attention scores
+python -m network_inference.src.cli infer --config configs/base.yaml
+
+# Evaluate against reference networks (AUPR, precision, recall, F1)
+python -m network_inference.src.cli evaluate-scores --config configs/score_eval_grn_baselines_immune.yaml
+
+# Run threshold sweeps
+python -m network_inference.src.cli sweep --config configs/base.yaml
+
+# Calibrate edge scores
+python -m network_inference.src.cli calibrate --config configs/base.yaml
+```
+
+Key modules:
+- `src/evaluation/score_edges.py` -- Edge scoring with identifier alignment, overlap gating, and AUPR computation
+- `src/evaluation/sweep.py` -- Percentile and top-k threshold sweeps
+- `src/data/mapping.py` -- Gene/protein ID mapping with HGNC alias resolution
+- `src/inference/candidates.py` -- Candidate edge generation with OmniPath/DoRothEA gating
+- `src/calibration/` -- Isotonic and logistic calibration for edge confidence scores
+
+### single_cell_mechinterp/
+
+The `single_cell_mechinterp` package handles scGPT attention extraction and mechanistic interpretability probes:
+
+Key modules:
+- `src/eval/bias_protocol.py` -- Evaluation bias protocol implementation
+- `src/eval/gene_symbols.py` -- Gene symbol mapping and validation
+- `src/interpret/attention.py` -- Attention extraction and analysis
+- `src/interpret/causal_intervention.py` -- Causal intervention framework (ablation, swap)
+- `src/model/` -- scGPT model loading, hooks, and vocabulary
+
+Key scripts:
+- `scripts/run_eval_bias_protocol.py` -- Run the full evaluation bias protocol
+- `scripts/generate_eval_bias_baselines.py` -- Generate GRN baselines (GENIE3, GRNBoost2, SCENIC, PIDC, correlation)
+- `scripts/run_probe_benchmark.py` -- Probe-based evaluation (attention, gradients, perturbation, consensus)
+- `scripts/run_causal_interventions.py` -- Causal intervention experiments
 
 ### configs/
 
@@ -28,7 +77,7 @@ REPORT.md    Detailed technical report with methods, tables, and figures
 |--------|-------------|
 | `regulatory_eval.yaml` | Strict regulatory evaluation (DoRothEA/TRRUST only) |
 | `score_eval_grn_baselines_immune.yaml` | GRN baseline methods vs HPN-DREAM + BEELINE + DoRothEA/TRRUST |
-| `score_eval_probe_priors.yaml` | Mechanistic interpretability probes (attention, gradients, perturbation, consensus) vs curated references |
+| `score_eval_probe_priors.yaml` | Mechanistic interpretability probes vs curated references |
 | `score_eval_probe_priors_full_genes.yaml` | Same probes evaluated over the full immune gene universe |
 | `score_eval_probe_priors_full_genes_crosswalk.yaml` | Full-gene evaluation with crosswalk-aware alias expansion |
 | `score_eval_probe_priors_full_genes_omnipath.yaml` | Full-gene evaluation gated by OmniPath interactions |
@@ -51,6 +100,14 @@ Evaluation metrics in paired CSV/JSON format:
 - `baseline_eval_hpn_beeline.*` / `grn_baseline_eval_hpn_beeline.*` -- Baseline and GRN-specific evaluations against HPN-DREAM and BEELINE
 - `node_overlap_hpn_beeline_full_genes.tsv` -- Node overlap statistics between inferred networks and reference networks
 - `*_missing_ids.tsv` / `*_missing_report.json` -- Identifier alignment diagnostics (unmapped genes per reference)
+
+## Installation
+
+```bash
+conda env create -f single_cell_mechinterp/deps/environment.yml
+conda activate scm
+pip install -r single_cell_mechinterp/deps/requirements.txt
+```
 
 ## Datasets
 
