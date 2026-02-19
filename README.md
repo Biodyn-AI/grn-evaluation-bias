@@ -131,11 +131,6 @@ The evaluation framework uses the following external datasets and references:
 | Curated priors | OmniPath, TRRUST, DoRothEA/TRRUST union |
 | Random baseline | Uniform random edge selection |
 
-## Citation
-
-If you use this evaluation protocol, please cite:
-
-> Kendiukhov, I. (2025). Evaluation bias in gene regulatory network benchmarks: identifier alignment, candidate gating, and reference domain effects. *In preparation.*
 
 ## License
 
