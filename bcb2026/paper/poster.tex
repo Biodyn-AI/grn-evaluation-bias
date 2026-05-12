@@ -73,18 +73,22 @@ The \emph{universe-aware} candidate set is
 \[
 U(D) = \{ (s,t) : s \in T(D),\ t \in G(D),\ s \neq t \}.
 \]
-For BEELINE \textbf{hESC} (17{,}735 genes $\times$ 758 cells, Chu et al.~2016):
-$|G|{=}17{,}724$, $|T|{=}1{,}459$, $|U|{=}25{,}857{,}857$;
-\textbf{hHep} (11{,}515 $\times$ 425, Camp et al.~2017):
-$|G|{=}11{,}512$, $|T|{=}1{,}095$, $|U|{=}12{,}604{,}545$. All methods
-score \emph{every} pair in $U(D)$.
+For BEELINE \textbf{hESC} (17{,}735 genes $\times$ 758 cells,
+\cite{chu2016hesc}): $|G|{=}17{,}724$, $|T|{=}1{,}459$,
+$|U|{=}25{,}857{,}857$; \textbf{hHep} (11{,}515 $\times$ 425,
+\cite{camp2017hhep}): $|G|{=}11{,}512$, $|T|{=}1{,}095$,
+$|U|{=}12{,}604{,}545$. All methods score \emph{every} pair in $U(D)$.
+The TF list $T_{\text{BEELINE}}$ is the human-TF compendium derived
+from~\cite{lambert2018tfs} and shipped with BEELINE.
 
-\textbf{Methods compared.} scGPT (whole-human, 12 layers, 8 heads)
-and Geneformer-V1-10M (6 layers, 4 heads) attention with six
-aggregation variants; baselines Pearson, Spearman, GRNBoost2 (100
-trees), and a seeded random scorer. AUROC significance uses DeLong's
-analytical SE~\cite{delong1988}; AUPR difference uses 2{,}000-resample
-paired bootstrap.
+\textbf{Methods compared.} scGPT~\cite{cui2024scgpt} (whole-human, 12
+layers, 8 heads) and Geneformer-V1-10M~\cite{theodoris2023geneformer}
+(6 layers, 4 heads) attention with six aggregation variants;
+baselines Pearson, Spearman,
+GRNBoost2~\cite{moerman2019grnboost2,huynh2010genie3} (100 trees), and
+a seeded random scorer. AUROC significance uses DeLong's analytical
+SE~\cite{delong1988}; AUPR difference uses 2{,}000-resample paired
+bootstrap.
 
 \section{Results}
 
@@ -181,12 +185,16 @@ we ship the dictionary as a SHA-checked file.
 
 \textbf{Gold-standard sensitivity is the third axis of protocol bias.}
 The same scGPT predictions move from \emph{below random} on hHep
-cell-type ChIP-seq to clearly above random on STRING and on hESC
-cell-type ChIP-seq (Table~\ref{tab:gs_sens}). Geneformer similarly
-shifts by $0.07$--$0.11$ AUROC across gold standards on the same
-dataset. Reports that cite a single ``AUPR against ChIP-seq'' number
-for a foundation model are not falsifiable without disclosing the
-gold-standard identity, the candidate set, and the universe size.
+cell-type ChIP-seq to clearly above random on STRING~\cite{string2019}
+and on hESC cell-type ChIP-seq (Table~\ref{tab:gs_sens}). Geneformer
+similarly shifts by $0.07$--$0.11$ AUROC across gold standards on the
+same dataset. Alternative regulatory references such as
+DoRothEA~\cite{garcia2019dorothea} and TRRUST~\cite{han2018trrust} use
+yet different inclusion criteria and would add further variability we
+do not estimate here. Reports that cite a single ``AUPR against
+ChIP-seq'' number for a foundation model are not falsifiable without
+disclosing the gold-standard identity, the candidate set, and the
+universe size.
 
 \begin{table}[t]
 \caption{Universe-aware AUROC across three gold standards, median
@@ -217,30 +225,27 @@ hESC & scGPT       & 0.578           & 0.523           & 0.604 \\
 \end{table}
 
 \textbf{Implications for benchmark design.}
-A defensible foundation-model GRN claim must specify three artifacts
-along with every metric: the pinned symbol dictionary, the candidate
-universe $U$ (and its cardinality and base rate), and the gold standard
-with its source/cell-type/version. The literature today routinely
-specifies only the last of these three, and often only loosely. Our
-released pipeline emits all three by construction for every
-evaluation; we hope it lowers the cost of reporting these specifics
-in future work.
+A defensible foundation-model GRN claim must specify the pinned
+symbol dictionary, the candidate universe $U$ (cardinality and base
+rate), and the gold standard with its source, cell-type, and version.
+The literature today routinely specifies only the last of these
+three, often loosely; our released pipeline emits all three by
+construction.
 
 \textbf{Top-of-ranking precision is even harsher than AUROC.}
 At the top of the universe-aware ranking on hHep cell-type ChIP-seq
-(base rate $0.018$, so random expects $\approx 0.9$ positives in the
-top $50$), precision$@50$ is zero for $5$ of $6$ scGPT variants and
-for Pearson and Spearman; precision$@1000$ is $0.009$--$0.017$ for
-scGPT versus $0.026$ for random. Geneformer fares better
-(precision$@50 = 0.04$--$0.06$, precision$@1000 = 0.025$--$0.028$,
-$\sim$$1.0$--$1.6\times$ random). For both foundation models on hHep,
-the top of the ranked attention edge list is statistically
+(base rate $0.018$), precision$@50$ is zero for $5$ of $6$ scGPT
+variants and for Pearson and Spearman; precision$@1000$ is
+$0.009$--$0.017$ for scGPT versus $0.026$ for random. Geneformer
+fares better ($\sim$$1.0$--$1.6\times$ random). For both foundation
+models on hHep, the top of the ranked attention edge list is
 indistinguishable from---or worse than---a random shuffle.
 
 \section{Reproducibility Checklist}
 
 (1) pin and ship a SHA-checked gene-symbol dictionary
-(here: HGNC dump SHA-256 \texttt{b9482a52\ldots}, 50{,}094 rows);
+(here: HGNC~\cite{tweedie2021hgnc} dump SHA-256
+\texttt{b9482a52\ldots}, 50{,}094 rows);
 (2) define and report $|G|$, $|T|$, $|U|$, and base rate for every
 metric;
 (3) report AUPR with its candidate-set definition---never as a single
@@ -255,78 +260,56 @@ seeded permutation/bootstrap, and SHA-checked data archives
 (here: BEELINE Zenodo record 3701939, SHA \texttt{1fc84949\ldots} for
 inputs, \texttt{d54fc6ed\ldots} for networks).
 
-\textbf{Limitations.} We evaluate two human BEELINE datasets;
-mouse datasets and other GRN benchmarks (e.g.,~DREAM5) are left to
-future work. scGPT's architectural sequence cap of $1{,}200$ tokens
-bounds the per-cell context, but cell-aggregated attention is
-collected over all expressed genes; results may differ for the
-$316$M-parameter Geneformer-V2 we did not run. BEELINE expression is already log-normalized; we invert via
-$\mathrm{round}(\mathrm{expm1}(\cdot))$ for the tokenizer-based
-models and ship the inversion script with the pipeline.
+\textbf{Limitations.} Two human BEELINE datasets; mouse benchmarks
+and DREAM5 left for future work. scGPT caps per-cell sequence at
+$1{,}200$ tokens; cell-aggregated attention covers all expressed
+genes. Results may differ for Geneformer-V2 ($316$M parameters) we
+did not run. BEELINE expression is log-normalized; we invert via
+$\mathrm{round}(\mathrm{expm1}(\cdot))$ for tokenizer-based models.
 
 Our analysis does \emph{not} preclude the possibility that
 foundation-model representations contain regulatory signal extractable
 by more sophisticated decoders; it establishes that raw attention
 aggregation does not suffice and that current benchmark claims require
-re-examination under controlled evaluation protocols.
+re-examination under controlled evaluation protocols. The point that
+protocol choices propagate into reported model rankings echoes earlier
+critiques of trajectory~\cite{saelens2019} and DREAM
+network~\cite{marbach2012} inference; we quantify the effect for
+transformer attention against ChIP-seq~\cite{encode2018,pratapa2020}
+and protein-association gold standards under a fully pinned pipeline.
 
-\textbf{Code and data availability.}
-The full pipeline---BEELINE preprocessing, attention extraction for
-scGPT and Geneformer, baselines, universe-aware evaluation,
-DeLong AUROC CI with paired AUPR bootstrap, Type-II ANOVA
-decomposition, and a paper-snippet generator that traces every
-number in this abstract back to its source CSV---is released under
-MIT at \url{https://github.com/Biodyn-AI/grn-evaluation-bias},
-together with the pinned HGNC dictionary, the BEELINE SHA checks,
-and a conda lockfile. All numeric values in this work are emitted
-verbatim by the released pipeline and are independently re-derivable.
+\textbf{Code and data.}
+Full MIT-licensed pipeline (BEELINE preprocessing, scGPT and
+Geneformer attention extraction, baselines, universe-aware
+evaluation, DeLong AUROC CI with paired AUPR bootstrap, Type-II ANOVA,
+paper-number trace) at
+\url{https://github.com/Biodyn-AI/grn-evaluation-bias}, with the
+pinned HGNC dictionary, BEELINE SHA checks, and a conda lockfile. All
+numbers above are emitted verbatim by the pipeline.
 
-\textbf{Acknowledgments.} We thank the BEELINE, scGPT, and Geneformer
-authors for releasing their data and checkpoints openly. No external
-funding supported this work.
-
-\begin{thebibliography}{1}
-\footnotesize
-\bibitem{cui2024scgpt}
-H.~Cui et al.
-sc{GPT}: toward building a foundation model for single-cell
-multi-omics using generative {AI}.
-\emph{Nature Methods}, 21(8):1470--1480, 2024.
-
-\bibitem{theodoris2023geneformer}
-C.~V. Theodoris et al.
-Transfer learning enables predictions in network biology.
-\emph{Nature}, 618(7965):616--624, 2023.
-
-\bibitem{pratapa2020}
-A.~Pratapa et al.
-Benchmarking algorithms for gene regulatory network inference from
-single-cell transcriptomic data.
-\emph{Nature Methods}, 17(2):147--154, 2020.
-
-\bibitem{moerman2019grnboost2}
-T.~Moerman et al.
-GRNBoost2 and Arboreto: efficient and scalable inference of gene
-regulatory networks. \emph{Bioinformatics}, 35(12):2159--2161, 2019.
-
-\bibitem{delong1988}
-E.~R. DeLong, D.~M. DeLong, and D.~L. Clarke-Pearson.
-Comparing the areas under two or more correlated ROC curves: a
-nonparametric approach. \emph{Biometrics}, 44(3):837--845, 1988.
-
-\bibitem{tweedie2021hgnc}
-S.~Tweedie et al.
-Genenames.org: the HGNC and VGNC resources in 2021.
-\emph{Nucleic Acids Research}, 49(D1):D939--D946, 2021.
-
-\bibitem{lambert2018tfs}
-S.~A. Lambert et al.
-The human transcription factors. \emph{Cell}, 172(4):650--665, 2018.
-
-\bibitem{string2019}
-D.~Szklarczyk et al.
-STRING v11: protein--protein association networks with increased
-coverage. \emph{Nucleic Acids Research}, 47(D1):D607--D613, 2019.
+\smallskip\noindent\textbf{\footnotesize References}
+\begingroup
+\scriptsize
+\renewcommand{\section}[2]{}
+\setlength{\bibsep}{0pt}
+\begin{thebibliography}{99}
+\bibitem{cui2024scgpt} Cui H. et al. scGPT. \emph{Nat. Methods} 21(8):1470, 2024.
+\bibitem{theodoris2023geneformer} Theodoris C.V. et al. Geneformer. \emph{Nature} 618:616, 2023.
+\bibitem{pratapa2020} Pratapa A. et al. BEELINE. \emph{Nat. Methods} 17(2):147, 2020.
+\bibitem{moerman2019grnboost2} Moerman T. et al. GRNBoost2/Arboreto. \emph{Bioinformatics} 35(12):2159, 2019.
+\bibitem{huynh2010genie3} Huynh-Thu V.A. et al. GENIE3. \emph{PLoS ONE} 5(9):e12776, 2010.
+\bibitem{chu2016hesc} Chu L.-F. et al. hESC scRNA-seq (GSE75748). \emph{Genome Biol.} 17:173, 2016.
+\bibitem{camp2017hhep} Camp J.G. et al. Liver bud (GSE81252). \emph{Nature} 546:533, 2017.
+\bibitem{garcia2019dorothea} Garcia-Alonso L. et al. DoRothEA. \emph{Genome Res.} 29(8):1363, 2019.
+\bibitem{han2018trrust} Han H. et al. TRRUST v2. \emph{NAR} 46(D1):D380, 2018.
+\bibitem{saelens2019} Saelens W. et al. Trajectory inference comparison. \emph{Nat. Biotechnol.} 37:547, 2019.
+\bibitem{marbach2012} Marbach D. et al. Wisdom of crowds. \emph{Nat. Methods} 9(8):796, 2012.
+\bibitem{encode2018} Davis C.A. et al. ENCODE portal. \emph{NAR} 46(D1):D794, 2018.
+\bibitem{delong1988} DeLong E.R., DeLong D.M., Clarke-Pearson D.L. Correlated ROC areas. \emph{Biometrics} 44(3):837, 1988.
+\bibitem{tweedie2021hgnc} Tweedie S. et al. Genenames.org. \emph{NAR} 49(D1):D939, 2021.
+\bibitem{lambert2018tfs} Lambert S.A. et al. Human TFs. \emph{Cell} 172(4):650, 2018.
+\bibitem{string2019} Szklarczyk D. et al. STRING v11. \emph{NAR} 47(D1):D607, 2019.
 \end{thebibliography}
+\endgroup
 
 \end{document}
