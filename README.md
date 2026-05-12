@@ -2,6 +2,10 @@
 
 A standardized evaluation framework for benchmarking gene regulatory network (GRN) inference methods, with a focus on quantifying evaluation biases introduced by identifier misalignment, candidate gating, and reference network domain mismatch.
 
+## ACM-BCB 2026 poster
+
+See [`bcb2026/`](bcb2026/) for the full pipeline applied to BEELINE hESC and hHep, comparing scGPT and Geneformer attention against expression baselines under the universe-aware protocol. Headline: protocol choice explains **80.1%** of AUPR variance vs **0.27%** for method identity (~300× gap); scGPT AUROC is significantly **below random** on hHep cell-type ChIP-seq under universe-aware scoring (DeLong CI, *p* ≪ 0.001).
+
 ## Motivation
 
 GRN inference benchmarks are sensitive to methodological choices that are often left implicit: how gene identifiers are mapped across databases, which candidate edges are considered, and whether reference networks overlap with the gene universe under study. This repository provides source code, configurations, reference data, and evaluation outputs that make these choices explicit and reproducible.

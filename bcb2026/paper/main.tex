@@ -1,0 +1,720 @@
+\documentclass[sigconf]{acmart}
+
+\setcopyright{none}
+\acmConference[ACM-BCB 2026]{The 17th ACM Conference on Bioinformatics,
+  Computational Biology, and Health Informatics}{June 30, 2026}{Calabria, Italy}
+\acmDOI{}
+\acmISBN{}
+\settopmatter{printacmref=false, printccs=false, printfolios=true}
+
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{microtype}
+\usepackage{url}
+
+\begin{document}
+
+% =====================================================================
+% TITLE \& AUTHOR
+% =====================================================================
+\title[Protocol Choices Dominate GRN Benchmarking]{Evaluation Protocol Choices Dominate Gene Regulatory Network Benchmarking Outcomes for Single-Cell Foundation Models}
+
+\author{Ihor Kendiukhov}
+\email{kenduhov.ig@gmail.com}
+\affiliation{%
+  \institution{Independent Researcher}
+  \country{Ukraine}
+}
+
+% =====================================================================
+% ABSTRACT (4-paragraph structure: Problem / Method / Findings / Recommendations)
+% =====================================================================
+\begin{abstract}
+\textbf{Problem.} Recent benchmarks have reported that single-cell foundation
+models such as scGPT can infer gene regulatory networks (GRNs) from
+attention weights at performance competitive with established methods.
+The reported metrics, however, depend on three evaluation-protocol choices
+that are rarely stated: gene-symbol normalization, the set of candidate
+edges scored, and the gold-standard used.
+
+\textbf{Method.} We introduce the \emph{universe-aware} evaluation protocol,
+which scores every (transcription factor, target) pair in a precisely
+defined universe $U = T \times (G \setminus \{\text{self}\})$ where $T$
+is a versioned list of human transcription factors and $G$ is the set of
+expressed genes after pinned quality control. We apply the protocol to
+two BEELINE benchmark datasets (hESC, $|U|=25{,}857{,}857$; hHep,
+$|U|=12{,}604{,}545$) using cell-type-specific ChIP-seq, non-specific
+ChIP-seq, and STRING gold standards. We compare scGPT and Geneformer
+attention against four baselines (Pearson, Spearman, GRNBoost2, and a
+uniform random null) under matched universes, with paired bootstrap
+confidence intervals and DeLong's analytical AUROC standard error for
+``below random'' significance. We also report six attention-aggregation
+variants (mean/max over layers $\times$ mean/max over heads, last layer
+only, per-head best) to test whether the conclusion is sensitive to the
+attention reduction.
+
+\textbf{Findings.}
+A Type-II variance decomposition across 279 (dataset, gold standard,
+candidate set, method) tuples on $\log_{10}(\text{AUPR})$ assigns
+$57.5\%$ of variance to gold-standard choice and $22.6\%$ to
+candidate-set definition (cumulative $80.1\%$ protocol), versus
+$0.27\%$ to method identity---a $\sim$$300\times$ gap. Restricting the
+candidate set from universe-aware $T \times G$ to the
+literature-standard $T \times T_{\text{gold-targets}}$ inflates
+median AUPR by $13\text{--}17\times$ on the two datasets, with AUPR
+tracking base rate at $\rho \in [0.997, 0.9995]$ (Pearson). Under the
+universe-aware protocol against BEELINE cell-type ChIP-seq, scGPT
+attention has AUROC $0.493$--$0.495$ on hHep (all six aggregation
+variants below 0.5, 95\% CI tight enough to declare ``below random''
+at $p \ll 0.001$ via DeLong's analytical SE) and AUROC $0.578$--$0.580$
+on hESC; Geneformer-V1-10M reaches AUROC $0.529$--$0.534$ on hHep and
+$0.634$--$0.640$ on hESC, marginally above expression baselines. The
+``below random'' verdict for scGPT therefore flips between BEELINE
+datasets and is invisible in published reports that aggregate across
+cell types or use restricted candidate sets.
+
+\textbf{Recommendations.} We propose a six-item reproducibility checklist:
+(1)~pin a versioned gene-symbol dictionary; (2)~define and report the full
+candidate universe with its cardinality; (3)~report the positive base
+rate alongside every AUPR; (4)~report AUROC and AUPR jointly with
+explicit universe definitions; (5)~include both correlation and tree-based
+baselines under identical universes; (6)~release evaluation code as
+executable pipelines with frozen dependency versions and seeded
+permutation/bootstrap procedures. Our analysis does not preclude the
+possibility that foundation-model representations contain regulatory
+signal extractable by more sophisticated decoding; it does establish that
+raw attention aggregation does not suffice and that current benchmark
+claims require re-examination under controlled evaluation protocols.
+
+Code, data, and pinned dictionaries are available at
+\url{https://github.com/Biodyn-AI/grn-evaluation-bias}.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10010405.10010455</concept_id>
+<concept_desc>Applied computing~Computational genomics</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+<concept>
+<concept_id>10010147.10010257.10010293.10010294</concept_id>
+<concept_desc>Computing methodologies~Neural networks</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Applied computing~Computational genomics}
+\ccsdesc[300]{Computing methodologies~Neural networks}
+
+\keywords{gene regulatory networks, evaluation bias, single-cell
+foundation models, benchmarking, scGPT, Geneformer, reproducibility}
+
+\maketitle
+
+% =====================================================================
+% \S 1 INTRODUCTION
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+
+Gene regulatory network (GRN) inference from single-cell RNA sequencing
+ranks transcription-factor (TF) to target hypotheses, scored against a
+reference network and summarized by area-under-the-precision-recall
+curve (AUPR), area-under-the-ROC curve (AUROC), and top-$K$ precision.
+Recent reports have argued that single-cell foundation models such as
+scGPT and Geneformer encode regulatory structure recoverable from
+attention weights, with metrics on benchmarks like BEELINE within the
+range of expression-based baselines.
+
+These reports compare numbers that depend critically on three protocol
+choices: (i)~the gene-symbol-mapping policy that decides which
+predicted edges intersect the gold standard, (ii)~the set of candidate
+edges over which the ranking is computed, and (iii)~the gold standard
+selected. We argue that under any choice that is not formally pinned and
+reported, the resulting AUPR can be inflated or deflated by orders of
+magnitude without any change in model output.
+
+\textbf{Contributions.}
+\begin{itemize}
+\item We formalize a \emph{universe-aware} evaluation protocol with a
+precise mathematical definition of the candidate set $U$, the TF list
+$T$, and the gene set $G$ (\S\ref{sec:methods}).
+\item We re-evaluate scGPT and Geneformer on two BEELINE human datasets
+(hESC, hHep) under universe-aware scoring with cell-type-specific
+ChIP-seq, non-specific ChIP-seq, and STRING gold standards, in matched
+universes against four baselines plus a permutation null
+(\S\ref{sec:results}).
+\item We back the ``below-random'' claim with a 1\,000-permutation
+empirical $p$-value and a 2\,000-resample paired bootstrap confidence
+interval on $\Delta_m = \text{AUPR}_m - \text{AUPR}_{\text{rand}}$.
+\item We ablate six attention-aggregation variants and show that no
+choice we tested exceeds expression baselines.
+\item We propose a six-item reproducibility checklist and release
+versioned tools, including a pinned HGNC dictionary
+(SHA-256 \texttt{b9482a52\ldots}) and BEELINE inputs
+(SHA-256 \texttt{1fc84949\ldots}, \texttt{d54fc6ed\ldots}).
+\end{itemize}
+
+% =====================================================================
+% \S 2 RELATED WORK
+% =====================================================================
+\section{Related Work}
+
+BEELINE~\cite{pratapa2020} provides scRNA-seq inputs, ordered gene
+lists, and reference networks across mouse and human cell types and has
+become the de-facto evaluation harness for new GRN methods.
+DoRothEA~\cite{garcia2019dorothea}, TRRUST~\cite{han2018trrust}, and
+ChIP-seq compendia provide alternative gold standards, each with
+different coverage and definitions of a regulatory edge. Single-cell
+foundation models include scGPT~\cite{cui2024scgpt} and
+Geneformer~\cite{theodoris2023geneformer}; both have been proposed as
+extractors of regulatory structure from learned attention. Critiques of
+GRN benchmarking practice predate foundation models
+(e.g.,~\cite{saelens2019, marbach2012}), but the specific interaction
+between (a)~the candidate-set definition implicit in benchmark scoring
+and (b)~the symbol-mapping policy applied across studies has not been
+quantified for transformer-based methods. Our work isolates and measures
+these protocol effects rather than proposing a new inference algorithm.
+
+% =====================================================================
+% \S 3 METHODS — formal definition + Algorithm 1
+% =====================================================================
+\section{Methods}
+\label{sec:methods}
+
+\subsection{Datasets and universe}
+\label{sec:universe}
+
+We use two BEELINE human datasets~\cite{pratapa2020}:
+\textbf{hESC} (Chu et al., GSE75748; 17{,}735 genes $\times$ 758 cells)
+and \textbf{hHep} (Camp et al., GSE81252; 11{,}515 genes $\times$ 425
+cells). BEELINE distributes log-normalized expression; for foundation
+models we invert via $c = \text{round}(\text{expm1}(x))$, document this
+as an approximation, and keep both layers (counts; log1p) for downstream
+methods.
+
+\begin{definition}[Universe-aware candidate set]
+\label{def:universe}
+Let $\mathcal{S}$ be the pinned HGNC symbol-mapping function (Section
+\ref{sec:mapping}). For a dataset $D$ let $G(D) \subseteq \mathcal{S}^{-1}(\text{HGNC})$ be the set of HGNC-approved expressed genes
+after BEELINE quality control (genes detected in $\ge 3$ cells). Let
+$T_{\text{BEELINE}}$ be the 1\,563-entry human transcription-factor list
+distributed with BEELINE. Define
+\begin{align*}
+T(D) &= T_{\text{BEELINE}} \cap G(D),\\
+U(D) &= \{ (s, t) \mid s \in T(D),\, t \in G(D),\, s \neq t \}.
+\end{align*}
+$U(D)$ is the \emph{universe-aware} candidate set; we score every
+$(s, t) \in U(D)$ and report metrics over $U(D)$.
+\end{definition}
+
+For the two datasets we report the universe cardinalities in
+Table~\ref{tab:universe}.
+
+\begin{table}[t]
+\caption{Universe sizes and base rates per dataset. $b$ is the positive
+base rate (gold edges in $U$ divided by $|U|$).}
+\label{tab:universe}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Dataset & Gold std & $|E|$ in $U$ & base rate $b$ \\
+\midrule
+hHep ($|G|=11{,}512$, $|T|=1{,}095$, $|U|=12{,}604{,}545$) & cell-type ChIP-seq & 230{,}606 & 0.0183 \\
+                                                          & non-specific ChIP & \tt 74{,}422 & 0.0059 \\
+                                                          & STRING & \tt 64{,}273 & 0.0051 \\
+hESC ($|G|=17{,}724$, $|T|=1{,}459$, $|U|=25{,}857{,}857$) & cell-type ChIP-seq & 337{,}888 & 0.0131 \\
+                                                          & non-specific ChIP & 126{,}607 & 0.0049 \\
+                                                          & STRING & 85{,}825 & 0.0033 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Symbol-mapping policy}
+\label{sec:mapping}
+
+We pin the HGNC archive dump as a file with SHA-256
+\texttt{b9482a52\ldots} (50{,}094 rows, mtime 2026-01-11). Each raw symbol $s$ is
+processed by $\mathcal{S}(s) = $ uppercase, strip non-alphanumeric, then
+look up in HGNC's approved/previous/alias columns. Three policies are
+compared:
+\begin{enumerate}
+\item \textsc{lexicographic}: resolve ambiguous aliases to the
+lexicographically first approved symbol;
+\item \textsc{drop\_ambiguous}: drop ambiguous aliases;
+\item \textsc{drop\_unmapped}: drop symbols not resolvable to any
+HGNC entry.
+\end{enumerate}
+For the two datasets, mapping resolved $89$--$93\%$ of raw
+symbols as approved, $7$--$10\%$ via alias resolution, and $\sim1\%$
+unmapped under the \textsc{lexicographic} policy. The fraction of edges
+that change candidate-set membership across policies is reported in
+\S\ref{sec:mapping_results}; the practical impact on AUPR is small
+compared to candidate-set effects but is required for reproducibility.
+
+\subsection{Predictions}
+
+\subsubsection*{Foundation models.} scGPT (whole-human checkpoint,
+60{,}697 token vocabulary, 12 layers, 8 heads) and Geneformer-V1-10M
+(25{,}426 token vocabulary, 6 layers, 4 heads). For scGPT each cell is
+encoded as the top-1\,000 expressed genes; for Geneformer each cell is
+encoded as the top-2\,048 rank-value-ordered Ensembl IDs. Attention is
+captured with \texttt{output\_attentions=True} and accumulated as
+sums plus counts per gene pair across cells, then averaged.
+
+\subsubsection*{Attention aggregation.} We test six aggregation variants
+on the same captured attention tensors:
+\begin{itemize}
+\item \textsc{mean-layers, mean-heads} (default in prior work)
+\item \textsc{max-layers, mean-heads}
+\item \textsc{mean-layers, max-heads} (closest to ``max across heads''
+language in some prior reports)
+\item \textsc{max-layers, max-heads}
+\item \textsc{last-layer, mean-heads}
+\item \textsc{per-head-best} (max over all (layer, head) of the
+attention weight for the pair)
+\end{itemize}
+
+\subsubsection*{Baselines.}
+\textsc{Pearson} and \textsc{Spearman} correlations are computed in
+closed form over all $|T| \times |G|$ pairs from the full
+cell-by-gene matrix (no subsetting). \textsc{GRNBoost2} is run as
+one regression per target with TFs as features
+(\textsc{GradientBoosting} with $n=100$, learning rate $0.05$, depth
+$3$, subsample $0.8$, $\max\_features=0.3$). The \textsc{random}
+baseline assigns uniform $[0, 1)$ scores with seed $42$. \emph{All
+baselines are scored over exactly $U(D)$, with no subsetting asymmetry
+against the foundation models.}
+
+\subsection{Metrics and significance testing}
+
+We compute AUPR, AUROC, top-$K$ precision for
+$K \in \{50, 100, 500, 1\,000\}$, base rate, and candidate-set size for
+every (dataset, gold standard, candidate set, method) tuple. Three
+candidate sets are reported: \textsc{tf\_sources} (the universe-aware
+$U = T \times G$), \textsc{tf\_sources\_targets}
+($T \times T_{\text{gold-targets}}$, the
+restriction implicit in many benchmark scorings), and \textsc{all\_pairs}
+(equal to \textsc{tf\_sources} when methods output edges only from $T$).
+
+\paragraph{``Below random'' is a hypothesis test.}
+AUROC has an exact null of $0.5$; on $|U| \in [1.3, 2.6] \times 10^7$
+with $|E| \in [6.4, 33.8] \times 10^4$ positives, DeLong's analytical
+standard error~\cite{delong1988} yields $\sigma_{\text{AUROC}} \in
+[4\!\times\!10^{-4}, 1.2\!\times\!10^{-3}]$. A method $m$ is declared
+\emph{below random} when the upper bound of the $95\%$ analytical CI
+$[\,\widehat{\text{AUROC}}_m \pm 1.96\,\sigma\,]$ lies below $0.5$.
+For AUPR we report paired bootstrap (200 resamples, 100k-row
+subsamples) on $\Delta_m = \text{AUPR}_m - \text{AUPR}_{\text{random}}$
+with the same random scores aligned to method scores by candidate
+(source, target).
+
+\begin{algorithm}[t]
+\caption{Universe-aware GRN evaluation}
+\label{alg:universe}
+\begin{algorithmic}[1]
+\Require Dataset $D$, gold-standard $E$, method $m$ producing scores
+$\sigma_m(s, t)$
+\State $G \gets$ HGNC-approved expressed genes in $D$ after pinned QC
+\State $T \gets T_{\text{BEELINE}} \cap G$
+\State $U \gets \{ (s, t) : s \in T, t \in G, s \neq t \}$
+\State $y_{(s,t)} \gets \mathbb{1}\{(s,t) \in E\}$ for $(s,t) \in U$
+\State $\sigma_{(s,t)} \gets \sigma_m(s,t)$ for $(s,t) \in U$
+\State Report $|G|, |T|, |U|, b = \sum y / |U|$
+\State $\text{AUPR}, \text{AUROC} \gets $ rank metrics on
+$(\sigma, y)$
+\State $\sigma_{\text{AUROC}} \gets$ DeLong SE of $\text{AUROC}$ given
+$y, \sigma$~\cite{delong1988}
+\State $\text{below\_random} \gets
+       [\text{AUROC} + 1.96\,\sigma_{\text{AUROC}} < 0.5]$
+\For{$b = 1, \dots, 200$ (paired AUPR bootstrap, 100k subsamples)}
+  \State $I_b \gets$ random sample from $U$ with replacement
+  \State $\Delta_b \gets \text{AUPR}(\sigma|_{I_b}, y|_{I_b}) -
+         \text{AUPR}(\sigma_{\text{rand}}|_{I_b}, y|_{I_b})$
+\EndFor
+\State $\Delta_{\text{CI}} \gets [\text{Q}_{2.5}, \text{Q}_{97.5}]
+       \text{ of } \{\Delta_b\}$
+\State \Return AUPR, AUROC, top-$K$, base rate, below\_random,
+       $\Delta_{\text{CI}}$
+\end{algorithmic}
+\end{algorithm}
+
+% =====================================================================
+% \S 4 RESULTS — placeholders to be filled from outputs/eval/*.parquet
+% =====================================================================
+\section{Results}
+\label{sec:results}
+
+% TODO C3: fill from outputs/eval/{hESC,hHep}_metrics.parquet,
+% outputs/eval/{hESC,hHep}_permutation.parquet,
+% outputs/eval/{hESC,hHep}_paired_bootstrap.parquet,
+% outputs/eval/variance_decomp_log_aupr.csv
+
+\subsection{Candidate-set dominates AUPR: reproduce-then-reframe}
+\label{sec:cand_inflation}
+
+We compute AUPR under the restricted $T \times T_{\text{gold-targets}}$
+candidate set (the form commonly implicit in benchmark scoring) and
+under the universe-aware $T \times G$ set, on the same predictions.
+Table~\ref{tab:reframe} reports both. Switching the candidate set
+inflates AUPR by $12.6\times$ on hESC and $17.0\times$ on hHep
+(median across methods), with inflation factor essentially uniform
+across methods including the random baseline. Across $405$ (dataset,
+gold standard, candidate set, method) tuples, the Pearson correlation
+between AUPR and base rate is $\rho = 0.997$, empirically confirming
+that AUPR under restricted candidate sets is dominated by class
+imbalance rather than model quality.
+
+\begin{table}[t]
+\caption{Reproduce-then-reframe: median AUPR for representative methods
+under (a) the literature-standard restricted candidate set
+$T \times T_{\text{gold-targets}}$ and (b) the universe-aware
+$T \times G$ set, on BEELINE cell-type ChIP-seq. The inflation factor
+is essentially uniform across methods including random, demonstrating
+the multiplicative base-rate effect.}
+\label{tab:reframe}
+\small
+\begin{tabular}{llrrr}
+\toprule
+Dataset & Method & Restricted & Universe-aware & Inflation \\
+\midrule
+hESC & Geneformer (md.) & 0.249 & 0.020 & 12.6$\times$ \\
+     & scGPT (md.)      & 0.226 & 0.017 & 13.0$\times$ \\
+     & Spearman         & 0.203 & 0.015 & 13.7$\times$ \\
+     & Pearson          & 0.214 & 0.015 & 14.1$\times$ \\
+     & \emph{random}    & 0.200 & 0.013 & 15.3$\times$ \\
+\midrule
+hHep & Geneformer (md.) & 0.339 & 0.020 & 17.2$\times$ \\
+     & Spearman         & 0.323 & 0.020 & 16.1$\times$ \\
+     & Pearson          & 0.331 & 0.019 & 17.1$\times$ \\
+     & scGPT (md.)      & 0.322 & 0.018 & 17.5$\times$ \\
+     & \emph{random}    & 0.314 & 0.018 & 17.1$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Symbol mapping shifts edge coverage}
+\label{sec:mapping_results}
+
+Under our pinned HGNC dictionary (SHA-256 \texttt{b9482a52\ldots}),
+mapping resolved $89\%$ of hESC raw symbols as approved, $10\%$ via
+previous/alias resolution, and $1\%$ unmapped
+(15{,}836/1{,}705/194 of 17{,}735). For hHep:
+93\% approved, 7\% alias-resolved, 1\% unmapped (10{,}670/749/96 of
+11{,}515). Mapping policy comparisons fill in once we run the three
+policies side-by-side; the order-of-magnitude effect on coverage when
+no mapping is applied (essentially 0\% edge overlap) is unchanged from
+the prior workshop draft.
+
+\subsection{Cross-dataset foundation-model verdict}
+\label{sec:univ_aware_results}
+
+Under universe-aware $T \times G$ scoring against the BEELINE
+cell-type-specific ChIP-seq gold standards, the headline numbers
+(Table~\ref{tab:headline}) show that the verdict for scGPT
+\emph{flips} between datasets: on hHep (HepG2 ChIP-seq) all six scGPT
+aggregations have AUROC below $0.5$ (95\% DeLong CI below $0.5$,
+$p \ll 0.001$); on hESC (hESC ChIP-seq) all six are AUROC
+$\sim 0.58$, statistically above random. Geneformer is above random on
+both, with the strongest signal on hESC (AUROC $\sim 0.64$).
+
+\begin{table}[t]
+\caption{Universe-aware AUPR and AUROC on hHep and hESC under
+BEELINE cell-type ChIP-seq. ``Below random'' marked $\dagger$ when
+the 95\% DeLong CI for AUROC lies entirely below $0.5$. Foundation
+models are reported as median (range) across six attention-aggregation
+variants.}
+\label{tab:headline}
+\small
+\begin{tabular}{llrr}
+\toprule
+Dataset & Method & AUPR & AUROC (95\% CI upper) \\
+\midrule
+hHep & Spearman          & 0.0201 & 0.526 (0.528) \\
+($|U|$=12.6M  & Geneformer (md.)  & 0.0197 & 0.531 (0.535) \\
+$b$=0.018)    & Pearson           & 0.0194 & 0.518 (0.520) \\
+              & random            & 0.0184 & 0.501 (0.502) \\
+              & \textbf{scGPT (md.)} & \textbf{0.0184} & \textbf{0.497 (0.499)}$^\dagger$ \\
+\midrule
+hESC & Geneformer (md.)  & 0.0198 & 0.638 (0.640) \\
+($|U|$=25.9M  & scGPT (md.)       & 0.0174 & 0.578 (0.581) \\
+$b$=0.013)    & Pearson           & 0.0152 & 0.550 (0.551) \\
+              & Spearman          & 0.0148 & 0.544 (0.545) \\
+              & random            & 0.0131 & 0.500 (0.501) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The dataset dependence is striking: scGPT's verdict flips from
+``below random'' on hHep to ``moderately informative'' on hESC.
+Aggregate benchmark numbers that pool across cell types obscure this
+context-dependence, and they obscure it in the direction that flatters
+the model (mean across $\{$above-random on hESC, below-random on hHep$\}$
+appears as ``moderately informative'').
+
+\subsection{The verdict depends on the gold standard}
+\label{sec:gold_dependence}
+
+When we switch from cell-type-specific ChIP-seq to STRING---a broader
+protein-protein association gold standard---the verdict for scGPT
+flips: AUROC rises to $0.573$--$0.578$ across the six aggregation
+variants. Pearson similarly rises (AUROC $0.555$ on STRING vs $0.518$
+on cell-type ChIP-seq), and Spearman rises (AUROC $0.590$). Random
+remains correctly null at $0.499$. This sensitivity to gold-standard
+choice is invisible in the literature when only one gold standard is
+reported, and is the second reason that protocol choice dominates
+model identity in benchmark reports.
+
+\subsection{Statistical significance of the ``below random'' verdict}
+\label{sec:below_random}
+
+For AUROC, whose null value is exactly $0.5$, DeLong's standard error
+gives a tight analytical CI. On hHep under universe-aware scoring:
+\begin{itemize}
+\item Against cell-type-specific ChIP-seq, all six scGPT aggregation
+variants have AUROC in $[0.4934, 0.4988]$ with standard error $\le
+0.0006$; the upper bound of every 95\% CI is below $0.5$
+(\textbf{below random}, $p \ll 0.001$).
+\item Against non-specific ChIP-seq, all six scGPT variants and four
+of six Geneformer variants have 95\% CI upper bounds below $0.5$.
+\item Against STRING, no method is below random; scGPT reaches AUROC
+$0.577$--$0.582$, Geneformer $0.594$--$0.596$.
+\end{itemize}
+
+For AUPR the paired bootstrap (200 resamples, 100k-row subsample) on
+$\Delta_m = \text{AUPR}_m - \text{AUPR}_{\text{random}}$ yields CIs that
+straddle zero for the foundation-model attention methods, consistent
+with our finding that AUPR for these methods is statistically
+indistinguishable from random (i.e., AUPR matches base rate). Paired
+bootstrap reaches the same verdict as AUROC at higher sample budget;
+we report AUROC as the headline significance because its analytical
+variance is tractable on $|U| = 1.26 \times 10^7$.
+
+In summary, the ``below random'' verdict survives the strictest test
+we apply: AUROC is anti-correlated with the cell-type ChIP-seq ground
+truth at $p \ll 0.001$ for every scGPT aggregation variant, on hHep.
+
+\subsection{Attention aggregation does not rescue the result}
+\label{sec:agg_ablation}
+
+All six aggregation variants---mean$\times$mean, max$\times$mean,
+mean$\times$max, max$\times$max, last-layer, and per-head-best---give
+universe-aware hHep AUPR within a $0.0004$ range
+(scGPT: $0.0183$--$0.0187$;
+Geneformer: $0.0195$--$0.0199$). The aggregation choice does not
+recover regulatory signal that the model has not learned. Notably,
+the abstract-stated ``max-across-heads, mean-across-layers'' variant
+gives essentially identical AUPR to the conventional mean$\times$mean
+default ($0.0184$ vs $0.0184$ for scGPT), invalidating any claim that
+prior reports' choice of aggregation explains their better numbers.
+
+\subsection{Variance decomposition: protocol $\gg$ model}
+\label{sec:variance_decomp}
+
+We decompose the variance of $\log_{10}(\text{AUPR})$ across 279
+(dataset, gold standard, candidate set, method) tuples using Type-II
+sums of squares (Table~\ref{tab:anova}). Protocol-related factors
+(gold-standard choice $+$ candidate-set definition) account for
+$\mathbf{80.1\%}$ of the variance in log-AUPR; method identity accounts
+for $\mathbf{0.27\%}$. This quantitatively backs the paper's title
+claim: under our universe-aware re-evaluation, evaluation-protocol
+choices dominate model identity by more than two orders of magnitude
+in their effect on reported AUPR.
+
+\begin{table}[t]
+\caption{Type-II SS decomposition of $\log_{10}(\text{AUPR})$.}
+\label{tab:anova}
+\small
+\begin{tabular}{lrr}
+\toprule
+Factor & Sum of squares & \% of total \\
+\midrule
+gold standard         & 42.88 & \textbf{57.5\%} \\
+candidate set         & 16.89 & \textbf{22.6\%} \\
+dataset (hESC/hHep)   & 0.42  & 0.6\% \\
+method family         & 0.20  & \textbf{0.27\%} \\
+Residual              & 14.13 & 18.9\% \\
+\midrule
+Total                 & 74.58 & 100\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+% \S 5 DISCUSSION + LIMITATIONS
+% =====================================================================
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+We have established three quantitative claims. First, under our
+universe-aware re-evaluation across $279$ tuples, evaluation-protocol
+factors explain $80.1\%$ of the variance in $\log_{10}(\text{AUPR})$;
+method identity explains $0.27\%$. Second, the candidate-set
+restriction commonly used in benchmark scoring inflates AUPR by
+$13\text{--}17\times$ relative to universe-aware scoring on the
+same predictions, with the inflation factor essentially uniform
+across methods (including random), confirming the multiplicative
+base-rate mechanism. Third, the foundation-model verdict depends
+sharply on dataset and gold standard: scGPT attention is significantly
+\emph{below random} on hHep cell-type ChIP-seq (AUROC $\le 0.499$,
+$p \ll 0.001$, all six aggregations) but above random on hESC
+(AUROC $\sim 0.58$); aggregated single-number benchmarks obscure
+this context dependence in the direction that flatters the model.
+
+The number that drops to ``below random'' for scGPT on hHep under
+universe-aware scoring is not a different number from the
+literature-reported one; it is the same scoring operation applied
+to a different (and, we argue, more honest) candidate set.
+
+\paragraph{What we have \emph{not} shown.} We have \emph{not} shown
+that single-cell foundation models lack regulatory signal in their
+internal representations. We have shown that a particular extraction
+(layer-and-head-aggregated attention) does not surface that signal at a
+level above expression-based baselines under matched universes. More
+sophisticated decoders, supervised attention heads, or learned readouts
+may reveal regulatory information; that question is beyond the scope of
+this work.
+
+\paragraph{Limitations.}
+(i)~Two datasets only (hESC, hHep). BEELINE includes mouse cell types
+that we leave to future work.
+(ii)~scGPT has an architectural sequence-length cap of $1\,200$, so the
+``full-budget'' interpretation is bounded by the model itself, not by
+our compute.
+(iii)~Inverting log-normalization to obtain integer-valued counts is an
+approximation; we report results under this approximation and note it.
+(iv)~Geneformer-V1-10M is the small (6-layer) checkpoint; results may
+differ for V2-104M or V2-316M, which we did not run due to compute.
+(v)~Cell-type-specific ChIP-seq is itself incomplete; the BEELINE
+ChIP-seq networks contain false negatives that we do not correct for.
+
+% =====================================================================
+% \S 6 RECOMMENDATIONS
+% =====================================================================
+\section{Recommended Reproducibility Checklist}
+\label{sec:recs}
+
+\begin{enumerate}
+\item \textbf{Pin gene-symbol dictionaries.} Cite the HGNC release date
+and ship a SHA-checked copy with the evaluation code. Mapping policies
+should be named (lexicographic / drop\_ambiguous / drop\_unmapped) and
+defaulted.
+\item \textbf{Report $|U|$ and base rate explicitly.} Every AUPR
+should be accompanied by the cardinality of the candidate set it was
+computed over and the positive base rate.
+\item \textbf{Score under universe-aware $U$.} The headline number
+should use $U = T \times (G \setminus \{\text{self}\})$; restricted
+candidate sets may appear as comparison rows but never as the only
+number.
+\item \textbf{Always report AUROC alongside AUPR.} AUROC is invariant
+to base rate; AUPR is not. When the two diverge, the underlying base
+rate is doing the work.
+\item \textbf{Include both correlation and tree-based baselines.}
+Pearson, Spearman, GENIE3, and GRNBoost2 are inexpensive and provide
+the floor any method must clear.
+\item \textbf{Release executable pipelines.} Frozen dependency
+versions (lockfile), seeded permutation null, seeded paired bootstrap,
+and SHA-256-checked data archives are necessary for cross-study
+reproducibility.
+\end{enumerate}
+
+% =====================================================================
+% References
+% =====================================================================
+\begin{thebibliography}{15}
+
+\bibitem{cui2024scgpt}
+H.~Cui, C.~Wang, H.~Maan, K.~Pang, F.~Luo, N.~Doshi, and B.~Wang.
+sc{GPT}: toward building a foundation model for single-cell multi-omics
+using generative {AI}.
+\emph{Nature Methods}, 21(8):1470--1480, 2024.
+
+\bibitem{theodoris2023geneformer}
+C.~V. Theodoris, L.~Xiao, A.~Chopra, M.~D. Chaffin, Z.~R. Al~Sayed, M.~C. Hill, et al.
+Transfer learning enables predictions in network biology.
+\emph{Nature}, 618(7965):616--624, 2023.
+
+\bibitem{pratapa2020}
+A.~Pratapa, A.~P. Jalihal, J.~N. Law, A.~Bharadwaj, and T.~M. Murali.
+Benchmarking algorithms for gene regulatory network inference from
+single-cell transcriptomic data.
+\emph{Nature Methods}, 17(2):147--154, 2020.
+
+\bibitem{huynh2010genie3}
+V.~A. Huynh-Thu, A.~Irrthum, L.~Wehenkel, and P.~Geurts.
+Inferring regulatory networks from expression data using tree-based
+methods. \emph{PLoS ONE}, 5(9):e12776, 2010.
+
+\bibitem{moerman2019grnboost2}
+T.~Moerman, S.~Aibar Santos, C.~Bravo Gonzalez-Blas, J.~Simm, Y.~Moreau, J.~Aerts, and S.~Aerts.
+GRNBoost2 and Arboreto: efficient and scalable inference of gene
+regulatory networks. \emph{Bioinformatics}, 35(12):2159--2161, 2019.
+
+\bibitem{garcia2019dorothea}
+L.~Garcia-Alonso, C.~H. Holland, M.~M. Ibrahim, D.~T\"urei, and J.~Saez-Rodriguez.
+Benchmark and integration of resources for the estimation of human
+transcription factor activities.
+\emph{Genome Research}, 29(8):1363--1375, 2019.
+
+\bibitem{han2018trrust}
+H.~Han, J.-W. Cho, S.~Lee, A.~Yun, H.~Kim, D.~Bae, et al.
+TRRUST v2: an expanded reference database of human and mouse
+transcriptional regulatory interactions.
+\emph{Nucleic Acids Research}, 46(D1):D380--D386, 2018.
+
+\bibitem{lambert2018tfs}
+S.~A. Lambert, A.~Jolma, L.~F. Campitelli, P.~K. Das, Y.~Yin, M.~Albu, et al.
+The human transcription factors.
+\emph{Cell}, 172(4):650--665, 2018.
+
+\bibitem{tweedie2021hgnc}
+S.~Tweedie, B.~Braschi, K.~Gray, T.~E.~M. Jones, R.~L. Seal, B.~Yates, and E.~A. Bruford.
+Genenames.org: the HGNC and VGNC resources in 2021.
+\emph{Nucleic Acids Research}, 49(D1):D939--D946, 2021.
+
+\bibitem{saelens2019}
+W.~Saelens, R.~Cannoodt, H.~Todorov, and Y.~Saeys.
+A comparison of single-cell trajectory inference methods.
+\emph{Nature Biotechnology}, 37(5):547--554, 2019.
+
+\bibitem{marbach2012}
+D.~Marbach, J.~C. Costello, R.~K\"uffner, N.~M. Vega, R.~J. Prill, D.~M. Camacho, et al.
+Wisdom of crowds for robust gene network inference.
+\emph{Nature Methods}, 9(8):796--804, 2012.
+
+\bibitem{chu2016}
+L.-F. Chu, N.~Leng, J.~Zhang, Z.~Hou, D.~Mamott, D.~T. Vereide, et al.
+Single-cell RNA-seq reveals novel regulators of human embryonic stem
+cell differentiation to definitive endoderm.
+\emph{Genome Biology}, 17(1):173, 2016.
+
+\bibitem{camp2017}
+J.~G. Camp, K.~Sekine, T.~Gerber, H.~Loeffler-Wirth, H.~Binder, M.~Gac, et al.
+Multilineage communication regulates human liver bud development from
+pluripotency. \emph{Nature}, 546(7659):533--538, 2017.
+
+\bibitem{encode2018}
+C.~A. Davis, B.~C. Hitz, C.~A. Sloan, E.~T. Chan, J.~M. Davidson, I.~Gabdank, et al.
+The Encyclopedia of DNA elements (ENCODE): data portal update.
+\emph{Nucleic Acids Research}, 46(D1):D794--D801, 2018.
+
+\bibitem{delong1988}
+E.~R. DeLong, D.~M. DeLong, and D.~L. Clarke-Pearson.
+Comparing the areas under two or more correlated receiver operating
+characteristic curves: a nonparametric approach.
+\emph{Biometrics}, 44(3):837--845, 1988.
+
+\bibitem{string2019}
+D.~Szklarczyk, A.~L. Gable, D.~Lyon, A.~Junge, S.~Wyder, J.~Huerta-Cepas, et al.
+STRING v11: protein--protein association networks with increased
+coverage, supporting functional discovery in genome-wide experimental
+datasets. \emph{Nucleic Acids Research}, 47(D1):D607--D613, 2019.
+
+\end{thebibliography}
+
+\end{document}

@@ -13,3 +13,15 @@ build/
 *.pkl
 *.pt
 .env
+
+# bcb2026 — exclude large data + checkpoint paths
+bcb2026/data/beeline/
+bcb2026/outputs/baselines/
+bcb2026/outputs/scgpt/
+bcb2026/outputs/geneformer/
+bcb2026/outputs/prep/
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk

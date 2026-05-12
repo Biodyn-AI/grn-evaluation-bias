@@ -1,0 +1,106 @@
+% Appendix A. Reproducibility checklist. To be \input{} into the paper or compiled separately as supplementary.
+
+\appendix
+\section{Reproducibility Appendix}
+\label{app:repro}
+
+\subsection{Pinned artifacts}
+
+All numeric claims in this paper are computed from the following pinned
+data and code:
+
+\begin{itemize}
+\item \textbf{HGNC dictionary.} 3-column TSV (Approved symbol, Previous
+symbols, Alias symbols), 50{,}094 rows, mtime 2026-01-11 02:06:29 UTC,
+SHA-256
+\texttt{b9482a5247a4162017bd9731ac6300757b9b7511ec9a02f99bafd6b4a43a89fc}.
+\item \textbf{BEELINE reference networks.} Archive
+\texttt{BEELINE-Networks.zip}, 16 MB, SHA-256
+\texttt{d54fc6ed6529141e85f94803d2c730a8173a3e867026227528ff1ae832765607},
+from Zenodo record 3701939. Contains
+\texttt{human-tfs.csv} (1{,}563 entries),
+\texttt{Networks/human/hESC-ChIP-seq-network.csv} (436{,}563 edges),
+\texttt{Networks/human/HepG2-ChIP-seq-network.csv} (342{,}862 edges),
+\texttt{Networks/human/Non-specific-ChIP-seq-network.csv}, and
+\texttt{Networks/human/STRING-network.csv}.
+\item \textbf{BEELINE scRNA-seq inputs.} Archive
+\texttt{BEELINE-data.zip}, 250 MB, SHA-256
+\texttt{1fc849499492c25ac72514e79a339c39aa057e58cd272097450875cecb380afa},
+from the same Zenodo record. We use
+\texttt{inputs/scRNA-Seq/hESC/ExpressionData.csv} (17{,}735 genes
+$\times$ 758 cells, log-normalized) and
+\texttt{inputs/scRNA-Seq/hHep/ExpressionData.csv} (11{,}515 genes
+$\times$ 425 cells, log-normalized).
+\item \textbf{scGPT checkpoint.} Whole-human checkpoint from
+\cite{cui2024scgpt}, 196 MB,
+\texttt{external/scGPT\_checkpoints/whole-human/best\_model.pt}.
+Vocabulary size 60{,}697; max\_seq\_len 1\,200; 12 layers; 8 heads.
+\item \textbf{Geneformer checkpoint.} Geneformer-V1-10M from
+\cite{theodoris2023geneformer}, HuggingFace
+\texttt{ctheodoris/Geneformer} commit
+\texttt{fcd26c45fc30fba1989e586bdc46bc366dda8655}, 39 MB. Vocabulary
+size 25{,}426; max\_position\_embeddings 2\,048; 6 layers; 4 heads.
+\end{itemize}
+
+\subsection{Procedure}
+
+\begin{enumerate}
+\item Run \texttt{scripts/prep\_beeline.py --tag hESC}. Inverts BEELINE
+log-normalization to integer counts, applies the pinned HGNC mapping,
+emits \texttt{outputs/prep/hESC/hESC\_raw.h5ad} and
+\texttt{hESC\_universe.json}. Repeat for hHep.
+\item Run \texttt{scripts/run\_baselines.py --tag hESC --method
+\{pearson,spearman,random,genie3,grnboost2\}}. Each emits a Parquet
+\texttt{outputs/baselines/hESC/<method>.parquet} with columns
+\texttt{(source, target, score)} covering exactly $U(\text{hESC})$.
+\item Run \texttt{scripts/run\_scgpt\_attention.py --tag hESC
+--max-genes 1000 --device cpu --batch-size 2}. Emits six aggregation
+variants into \texttt{outputs/scgpt/hESC/}.
+\item Run \texttt{scripts/run\_geneformer\_attention.py --tag hESC}.
+Emits six aggregation variants into \texttt{outputs/geneformer/hESC/}.
+\item Run \texttt{scripts/eval\_universe\_aware.py --tag hESC} and
+\texttt{--tag hHep}. Emits
+\texttt{outputs/eval/<tag>\_metrics.parquet}.
+\item Run \texttt{scripts/permutation\_null.py --tag <tag>
+--n-perm 1000 --n-boot 2000}. Emits
+\texttt{outputs/eval/<tag>\_permutation.parquet} and
+\texttt{<tag>\_paired\_bootstrap.parquet}.
+\item Run \texttt{scripts/variance\_decomp.py --y log\_aupr}. Emits
+\texttt{outputs/eval/variance\_decomp\_log\_aupr.csv}.
+\item Run \texttt{scripts/format\_results.py}. Emits
+\texttt{outputs/eval/paper\_snippets.md} which contains every numeric
+value referenced in this paper.
+\end{enumerate}
+
+\subsection{Seeds and randomness}
+
+All randomized procedures use the seeded interfaces in
+\texttt{numpy.random.default\_rng(seed)} and
+\texttt{sklearn.ensemble.RandomForestRegressor(random\_state=seed)} /
+\texttt{GradientBoostingRegressor(random\_state=seed)}. Per-target
+regressor seeds are derived as \texttt{base\_seed + target\_index}.
+Permutation seeds use a single \texttt{rng = np.random.default\_rng(42)}.
+Paired-bootstrap seeds use the same \texttt{rng}.
+
+\subsection{Environment}
+
+\begin{itemize}
+\item Python 3.11.9 (Anaconda)
+\item PyTorch 2.11 (MPS backend)
+\item Transformers (current pinned version in lockfile)
+\item scanpy 1.10.2, anndata 0.12.7
+\item arboreto 0.1.6 (with sklearn-only replacement for the
+GENIE3 / GRNBoost2 fits; see \texttt{scripts/run\_baselines.py}
+\texttt{run\_arboreto()} for the equivalent fits via
+\texttt{sklearn.ensemble} + \texttt{joblib})
+\item statsmodels for the ANOVA decomposition
+\end{itemize}
+
+\subsection{Hardware used in our runs}
+
+Apple M-series with 10 CPU cores, MPS GPU, 32 GB RAM. scGPT extraction
+runs on CPU with \texttt{OMP\_NUM\_THREADS=2} and
+\texttt{MKL\_NUM\_THREADS=2} (flash attention is not available on this
+platform). Geneformer-V1-10M runs on MPS. Total wall time for the
+hESC+hHep pipeline including 1\,000-permutation null and
+2\,000-paired-bootstrap is approximately \texttt{TBA hours}.
