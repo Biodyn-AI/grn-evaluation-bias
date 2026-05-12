@@ -257,9 +257,9 @@ null;
 (5) include both a correlation baseline (Pearson/Spearman) and a
 tree-based baseline (GRNBoost2/GENIE3) under the same universe;
 (6) release executable pipelines with frozen dependency versions,
-seeded permutation/bootstrap, and SHA-checked data archives
-(here: BEELINE Zenodo record 3701939, SHA \texttt{1fc84949\ldots} for
-inputs, \texttt{d54fc6ed\ldots} for networks).
+seeded permutation and bootstrap, and SHA-checked data archives
+(BEELINE Zenodo 3701939, SHA \texttt{1fc849\ldots} inputs,
+\texttt{d54fc6\ldots} networks).
 
 \textbf{Limitations.} Two human BEELINE datasets; mouse benchmarks
 and DREAM5 left for future work. scGPT caps per-cell sequence at
@@ -279,15 +279,12 @@ network~\cite{marbach2012} inference; we quantify the effect for
 transformer attention against ChIP-seq~\cite{encode2018,pratapa2020}
 and protein-association gold standards under a fully pinned pipeline.
 
-\textbf{Code and data.}
-Full MIT-licensed pipeline (BEELINE preprocessing, scGPT and
-Geneformer attention extraction, baselines, universe-aware
-evaluation, DeLong AUROC CI with paired AUPR bootstrap, Type-II ANOVA,
-paper-number trace) at
+\textbf{Code and data.} Full MIT-licensed pipeline at
 \url{https://anonymous.4open.science/r/grn-evaluation-bias-DE97/}
-(anonymous mirror for blind review), with the pinned HGNC dictionary,
-BEELINE SHA checks, and a conda lockfile. All numbers above are
-emitted verbatim by the pipeline.
+(anonymous mirror): BEELINE prep, scGPT and Geneformer attention,
+baselines, universe-aware eval, DeLong AUROC CI with paired bootstrap,
+Type-II ANOVA, plus pinned HGNC and BEELINE SHA checks and a conda
+lockfile. All numbers above are emitted verbatim by the pipeline.
 
 \smallskip\noindent\textbf{\footnotesize References}
 \begingroup
